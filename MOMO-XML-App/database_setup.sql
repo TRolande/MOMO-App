@@ -1,100 +1,94 @@
--- database_setup.sql
+CREATE TABLE User (
+  user_id INT PRIMARY KEY COMMENT 'Unique ID',
+  first_name VARCHAR(100) COMMENT 'First name',
+  last_name VARCHAR(100) COMMENT 'Last name',
+  phone_number VARCHAR(20) COMMENT 'Phone',
+  email VARCHAR(100) COMMENT 'Email',
+  user_type VARCHAR(50) COMMENT 'Type'
+) COMMENT='Users table';
 
--- 1. DROP TABLES IF THEY EXIST (for repeatability)
-DROP TABLE IF EXISTS Transactions;
-DROP TABLE IF EXISTS Accounts;
-DROP TABLE IF EXISTS Users;
+CREATE TABLE Transaction_Categories (
+  category_id INT PRIMARY KEY COMMENT 'Unique ID',
+  category_name VARCHAR(100) COMMENT 'Name',
+  description TEXT COMMENT 'Details'
+) COMMENT='Transaction categories';
 
--- 2. USERS TABLE
-CREATE TABLE Users (
-    UserID SERIAL PRIMARY KEY COMMENT 'Unique ID for each user',
-    Username VARCHAR(50) NOT NULL UNIQUE COMMENT 'Username for login',
-    Email VARCHAR(100) NOT NULL UNIQUE COMMENT 'User email address',
-    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Account creation date'
-) COMMENT='Table storing user account information';
+CREATE TABLE Transaction (
+  transaction_id INT PRIMARY KEY COMMENT 'Unique ID',
+  sender_id INT COMMENT 'FK user',
+  receiver_id INT COMMENT 'FK user',
+  category_id INT COMMENT 'FK category',
+  amount DECIMAL(12,2) COMMENT 'Amount',
+  transaction_date DATETIME COMMENT 'Date',
+  status VARCHAR(50) COMMENT 'Status',
+  FOREIGN KEY (sender_id) REFERENCES User(user_id),
+  FOREIGN KEY (receiver_id) REFERENCES User(user_id),
+  FOREIGN KEY (category_id) REFERENCES Transaction_Categories(category_id)
+) COMMENT='Transactions';
 
--- 3. ACCOUNTS TABLE
-CREATE TABLE Accounts (
-    AccountID SERIAL PRIMARY KEY COMMENT 'Unique account identifier',
-    UserID INTEGER NOT NULL COMMENT 'Owner of the account',
-    Balance DECIMAL(12,2) NOT NULL DEFAULT 0.00 COMMENT 'Current account balance',
-    Type VARCHAR(20) NOT NULL COMMENT 'Type of account (e.g., savings, checking)',
-    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Account creation date',
-    FOREIGN KEY (UserID) REFERENCES Users(UserID)
-) COMMENT='Table for user financial accounts';
+CREATE TABLE User_Transactions (
+  user_id INT COMMENT 'FK user',
+  transaction_id INT COMMENT 'FK transaction',
+  role VARCHAR(50) COMMENT 'Role in TX',
+  PRIMARY KEY (user_id, transaction_id),
+  FOREIGN KEY (user_id) REFERENCES User(user_id),
+  FOREIGN KEY (transaction_id) REFERENCES Transaction(transaction_id)
+) COMMENT='User-Transaction links';
 
--- 4. TRANSACTIONS TABLE
-CREATE TABLE Transactions (
-    TransactionID SERIAL PRIMARY KEY COMMENT 'Unique transaction identifier',
-    AccountID INTEGER NOT NULL COMMENT 'Account involved in transaction',
-    Amount DECIMAL(10,2) NOT NULL COMMENT 'Transaction amount',
-    TransactionType VARCHAR(20) NOT NULL COMMENT 'Type: deposit, withdrawal, etc.',
-    Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'When transaction happened',
-    Description VARCHAR(255) COMMENT 'Optional transaction description',
-    FOREIGN KEY (AccountID) REFERENCES Accounts(AccountID)
-) COMMENT='Table for account transactions';
+CREATE TABLE System_Logs (
+  log_id INT PRIMARY KEY COMMENT 'Unique ID',
+  transaction_id INT COMMENT 'FK transaction',
+  log_type VARCHAR(50) COMMENT 'Type',
+  created_at DATETIME COMMENT 'Created',
+  message TEXT COMMENT 'Message',
+  FOREIGN KEY (transaction_id) REFERENCES Transaction(transaction_id)
+) COMMENT='Logs';
 
--- 5. INDEXES
-CREATE INDEX idx_userid ON Users(UserID);
-CREATE INDEX idx_transactionid ON Transactions(TransactionID);
+CREATE INDEX idx_user_userid ON User(user_id);
+CREATE INDEX idx_transaction_transactionid ON Transaction(transaction_id);
 
--- 6. INSERT TEST DATA
+INSERT INTO User VALUES
+ (1,'Alice','Smith','1234','alice@email.com','customer'),
+ (2,'Bob','Brown','2345','bob@email.com','customer'),
+ (3,'Carol','Jones','3456','carol@email.com','admin'),
+ (4,'Dave','Lee','4567','dave@email.com','customer'),
+ (5,'Eve','Davis','5678','eve@email.com','customer');
 
--- USERS
-INSERT INTO Users (Username, Email) VALUES
-('alice', 'alice@gmail.com'),
-('bob', 'bob@gmail.com'),
-('carol', 'carol@gmail.com'),
-('dave', 'dave@gmail.com'),
-('eve', 'eve@gmail.com');
+INSERT INTO Transaction_Categories VALUES
+ (1,'Airtime','Top up'),
+ (2,'Bills','Pay bills'),
+ (3,'Transfer','Send money'),
+ (4,'Cash Out','Withdraw money'),
+ (5,'Merchant','Pay merchant');
 
--- ACCOUNTS
-INSERT INTO Accounts (UserID, Balance, Type) VALUES
-(1, 1000.00, 'checking'),
-(2, 2500.50, 'savings'),
-(3, 350.00, 'checking'),
-(4, 780.75, 'savings'),
-(5, 1550.00, 'checking');
+INSERT INTO Transaction VALUES
+ (1001,1,2,3,5000,'2025-09-17 10:00:00','completed'),
+ (1002,2,3,2,2000,'2025-09-17 11:00:00','pending'),
+ (1003,3,4,1,10000,'2025-09-17 12:00:00','failed'),
+ (1004,4,5,4,1500,'2025-09-17 13:00:00','completed'),
+ (1005,5,1,5,7500,'2025-09-17 14:00:00','completed');
 
--- TRANSACTIONS
-INSERT INTO Transactions (AccountID, Amount, TransactionType, Description) VALUES
-(1, 200.00, 'deposit', 'Initial deposit'),
-(2, 100.50, 'withdrawal', 'ATM withdrawal'),
-(3, 50.00, 'deposit', 'Gift'),
-(4, 120.75, 'deposit', 'Paycheck'),
-(5, 300.00, 'withdrawal', 'Bill payment');
+INSERT INTO User_Transactions VALUES
+ (1,1001,'sender'),
+ (2,1001,'receiver'),
+ (2,1002,'sender'),
+ (3,1002,'receiver'),
+ (3,1003,'sender'),
+ (4,1003,'receiver'),
+ (4,1004,'sender'),
+ (5,1004,'receiver'),
+ (5,1005,'sender'),
+ (1,1005,'receiver');
 
--- 7. COLUMN COMMENTS (PostgreSQL syntax, ignore if not supported)
+INSERT INTO System_Logs VALUES
+ (501,1001,'INFO','2025-09-17 10:01:00','Done.'),
+ (502,1002,'WARN','2025-09-17 11:05:00','Pending.'),
+ (503,1003,'ERROR','2025-09-17 12:10:00','Failed.'),
+ (504,1004,'INFO','2025-09-17 13:05:00','Done.'),
+ (505,1005,'INFO','2025-09-17 14:01:00','Done.');
 
-COMMENT ON COLUMN Users.UserID IS 'Unique ID for each user';
-COMMENT ON COLUMN Users.Username IS 'Username for login';
-COMMENT ON COLUMN Users.Email IS 'User email address';
-COMMENT ON COLUMN Users.CreatedAt IS 'Account creation date';
-
-COMMENT ON COLUMN Accounts.AccountID IS 'Unique account identifier';
-COMMENT ON COLUMN Accounts.UserID IS 'Owner of the account';
-COMMENT ON COLUMN Accounts.Balance IS 'Current account balance';
-COMMENT ON COLUMN Accounts.Type IS 'Type of account (e.g., savings, checking)';
-COMMENT ON COLUMN Accounts.CreatedAt IS 'Account creation date';
-
-COMMENT ON COLUMN Transactions.TransactionID IS 'Unique transaction identifier';
-COMMENT ON COLUMN Transactions.AccountID IS 'Account involved in transaction';
-COMMENT ON COLUMN Transactions.Amount IS 'Transaction amount';
-COMMENT ON COLUMN Transactions.TransactionType IS 'Type: deposit, withdrawal, etc.';
-COMMENT ON COLUMN Transactions.Timestamp IS 'When transaction happened';
-COMMENT ON COLUMN Transactions.Description IS 'Optional transaction description';
-
--- 8. BASIC CRUD QUERIES (EXAMPLES)
-
--- INSERT
-INSERT INTO Users (Username, Email) VALUES ('testuser', 'test@example.com');
-
--- SELECT
-SELECT * FROM Users;
-SELECT * FROM Accounts WHERE UserID = 1;
-
--- UPDATE
-UPDATE Accounts SET Balance = Balance + 100 WHERE AccountID = 1;
-
--- DELETE
-DELETE FROM Transactions WHERE TransactionID = 1;
+-- CRUD EXAMPLES
+INSERT INTO User VALUES (6,'Frank','Mills','6789','frank@email.com','customer');
+SELECT * FROM Transaction WHERE status='completed';
+UPDATE User SET phone_number='0000' WHERE user_id=2;
+DELETE FROM System_Logs WHERE log_id=505;
